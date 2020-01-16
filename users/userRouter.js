@@ -13,39 +13,14 @@ router.post('/', validateUser, (req, res) => {
   .then(user => {
     res.status(201).json(user)
   })
-  .catch(error => {
-    console.log(error);
-    res.status(500).json({
-      errorMessage: 'This user could not be saved to the database'
-    });
   });
-});
 
 // POST - Add a post to a user specified by the ID passed in the request body
 
 router.post('/:id/posts', validateUserId, validatePost, (req, res) => {
-  const postInfo = req.body;
-  const {text, user_id} = postInfo
-  posts.insert(postInfo)
+  posts.insert(req.body)
   .then(post => {
-    if (!user_id) {
-      res.status(404).json({
-        errorMessage: 'The user with the specified ID does not exist.'
-      })
-    }
-    else if (!text) {
-      res.status(400).json({
-        errorMessage: 'Please provide text for the comment.'
-      })
-    }
-    else if (text && user_id) {
-      res.status(201).json(post)
-    }
-    else {
-      res.status(500).json({
-        errorMessage: 'There was an error while saving the comment to the database'
-      })
-    }
+    res.status(201).json(post)
   });
 });
 
@@ -71,19 +46,7 @@ router.get('/:id', validateUserId, (req, res) => {
   console.log(req.user)
   users.getById(id)
   .then(user => {
-    if (!id) {
-      res.status(404).json({
-        errorMessage: 'The user with the specified ID does not exist.'
-      })
-    }
-    else if (id) {
-      res.status(200).json(user)
-    }
-    else {
-      res.status(500).json({
-        errorMessage: 'The user information could not be retrieved'
-      })
-    }
+    res.status(200).json(user)
   });
 });
 
@@ -91,21 +54,9 @@ router.get('/:id', validateUserId, (req, res) => {
 
 router.get('/:id/posts', validateUserId, (req, res) => {
   const id = req.params.id
-  posts.getById(id) 
+  users.getUserPosts(id) 
   .then(post => {
-    if (!id) {
-      res.status(404).json({
-        errorMessage: 'The post with the specified ID does not exist.'
-      })
-    }
-    else if (id) {
-      res.status(200).json(post)
-    }
-    else {
-      res.status(500).json({
-        errorMessage: 'The post information could not be retrieved.'
-      })
-    }
+    res.status(200).json(post)
   });
 });
 
@@ -115,58 +66,36 @@ router.delete('/:id', validateUserId, (req, res) => {
   const id = req.params.id;
   users.remove(id)
   .then(user => {
-    if (!id) {
-      res.status(404).json({
-        errorMessage: 'The user with the specified ID could not be found'
-      })
-    }
-    else if (id) {
-      res.status(200).json(user)
-    }
-    else {
-      res.status(500).json({
-        errorMessage: 'The user could not be removed'
-      })
-    }
+    res.status(204).json(user)
   });
 });
 
 // PUT - Updates a user in the user database by specifying a user ID passed in the request body.
 
-router.put('/:id', validateUserId, (req, res) => {
+router.put('/:id', validateUserId, validateUser, (req, res) => {
   const id = req.params.id;
   const updatedUser = req.body
   users.update(id, updatedUser)
   .then(user => {
-    if (id) {
-      res.status(200).json(user)
-    }
-    else if (!id) {
-      res.status(404).json({
-        errorMessage: 'The user with that ID could not be found.'
-      })
-    }
-    else {
-      res.status(500).json({
-        errorMessage: 'The user could not be updated.'
-      })
-    }
+    res.status(200).json(user)
   });
 });
 
 //custom middleware
 
 function validateUserId(req, res, next) {
-  const id = req.params.id
-  if (id) {
-    req.user = id
-    next();
-  }
-  else {
-    res.status(400).json({
-      message: 'Invalid user ID'
-    })
-  }
+  users.getById(req.params.id)
+  .then(user => {
+    if (user) {
+      req.user = user
+      next();
+    }
+    else {
+      res.status(400).json({
+        message: 'Invalid user ID'
+      })
+    }
+  });
 };
 
 function validateUser(req, res, next) {
@@ -186,7 +115,7 @@ function validateUser(req, res, next) {
 };
 
 function validatePost(req, res, next) {
-  if (!req.body) {
+  if (!req.body && !req.body.text) {
     res.status(400).json({
       message: 'Missing post Data.'
     })
